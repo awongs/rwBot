@@ -7,14 +7,13 @@ class Commands(commands.Cog):
 
     def __init__(self, client):
         self.client = client
-        self.voiceClient = None
 
     # Called when the bot is ready
     @commands.Cog.listener()
     async def on_ready(self):
         print("Bot is ready.")
 
-    # Command for when the user types !ping or !ozma
+    # Command for when the user types !ping
     @commands.command()
     async def ping(self, ctx):
 
@@ -23,20 +22,40 @@ class Commands(commands.Cog):
 
     @commands.command()
     async def join(self, ctx):
-
         # Check if author is in a voice channel before connecting
-        if ctx.author.voice is not None:
-            print(f"Joining {ctx.author.voice.channel}")
-            self.voiceClient = await ctx.author.voice.channel.connect()  # Join voice channel
+        if ctx.author.voice is None:
+            await ctx.send(":x: You must be in a voice channel to use this command")
+            return
+
+        guild_client = None  # Reference to the specific server's voice client
+
+        # Check if already connected to a voice channel on the server
+        for voiceClient in self.client.voice_clients:
+            if voiceClient.guild == ctx.author.guild:
+                guild_client = voiceClient
+                break
+
+        print(f"Joining {ctx.author.voice.channel}")
+
+        # Join voice channel
+        if guild_client is not None:
+            await guild_client.move_to(ctx.author.voice.channel)
+        else:
+            await ctx.author.voice.channel.connect()
 
     @commands.command()
     async def leave(self, ctx):
+        successful = False
 
-        if self.voiceClient is not None and self.voiceClient.is_connected():
-            print("Left channel")
-            await self.voiceClient.disconnect()
-        else:
-            print("Not in a channel")
+        if ctx.author.voice is not None:
+            for voiceClient in self.client.voice_clients:
+                if voiceClient.channel.id == ctx.author.voice.channel.id:
+                    await voiceClient.disconnect()
+                    print(f"Leaving {ctx.author.voice.channel}")
+                    successful = True
+
+        if not successful:
+            await ctx.send(":x: You must be in the same voice channel to use this command")
 
 
 def setup(client):
