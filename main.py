@@ -2,7 +2,20 @@ import discord
 import os
 from discord.ext import commands
 
-client = commands.Bot(command_prefix = '!')
+client = commands.Bot(command_prefix='!')
+
+# Called when the bot is ready
+@client.event
+async def on_ready():
+    print("Bot is ready.")
+
+
+@client.listen()
+async def on_message(msg):
+    if msg.author == client.user:
+        await msg.delete(delay=5)
+
+    print(f"{msg.author}: {msg.content}  ---  {msg.author.guild}.{msg.channel}")  # Logging
 
 
 @client.command()
