@@ -1,17 +1,20 @@
 import discord
 from discord.ext import commands
-from discord.voice_client import VoiceClient
 
 
 class Commands(commands.Cog):
 
     def __init__(self, client):
         self.client = client
+        print("Loaded commands.py")
 
-    # Called when the bot is ready
-    @commands.Cog.listener()
-    async def on_ready(self):
-        print("Bot is ready.")
+    # Get's the voice client that is connected to the author's server
+    def get_voice_client(self, author_guild: discord.Guild) -> discord.VoiceClient:
+        for voice_client in self.client.voice_clients:
+            if voice_client.guild == author_guild:
+                return voice_client
+
+        return None
 
     # Command for when the user types !ping
     @commands.command()
@@ -19,42 +22,39 @@ class Commands(commands.Cog):
 
         # Reply with the bot's latency
         await ctx.send(f'Pong! {round(self.client.latency * 1000)}ms')
+        await self.summon()
 
     @commands.command()
-    async def join(self, ctx):
+    async def summon(self, ctx):
         # Check if author is in a voice channel before connecting
         if ctx.author.voice is None:
             await ctx.send(":x: You must be in a voice channel to use this command")
             return
 
-        guild_client = None  # Reference to the specific server's voice client
-
-        # Check if already connected to a voice channel on the server
-        for voiceClient in self.client.voice_clients:
-            if voiceClient.guild == ctx.author.guild:
-                guild_client = voiceClient
-                break
+        # Reference to the specific server's voice client
+        voice_client = self.get_voice_client(author_guild=ctx.author.guild)
 
         print(f"Joining {ctx.author.voice.channel}")
 
         # Join voice channel
-        if guild_client is not None:
-            await guild_client.move_to(ctx.author.voice.channel)
+        if voice_client is not None:
+            await voice_client.move_to(ctx.author.voice.channel)
         else:
             await ctx.author.voice.channel.connect()
 
     @commands.command()
     async def leave(self, ctx):
-        successful = False
 
-        if ctx.author.voice is not None:
-            for voiceClient in self.client.voice_clients:
-                if voiceClient.channel.id == ctx.author.voice.channel.id:
-                    await voiceClient.disconnect()
-                    print(f"Leaving {ctx.author.voice.channel}")
-                    successful = True
+        # Reference to the specific server's voice client
+        voice_client = self.get_voice_client(author_guild=ctx.author.guild)
 
-        if not successful:
+        # Check if the message author is in the same voice channel
+        if voice_client.channel.id == ctx.author.voice.channel.id:
+
+            # Leave voice channel
+            await voice_client.disconnect()
+            print(f"Leaving {ctx.author.voice.channel}")
+        else:
             await ctx.send(":x: You must be in the same voice channel to use this command")
 
 
