@@ -1,5 +1,6 @@
 import discord
 import youtube_dl
+import os
 from discord.ext import commands
 
 
@@ -26,6 +27,7 @@ class Music(commands.Cog):
         if voice_client is not None:
             opts = {
                 'format': 'bestaudio/best',
+                'outtmpl': f'{os.getcwd()}/songs/%(title)s.%(ext)s',
                 'postprocessors': [{
                     'key': 'FFmpegExtractAudio',
                     'preferredcodec': 'mp3',
@@ -34,9 +36,11 @@ class Music(commands.Cog):
             }
             with youtube_dl.YoutubeDL(opts) as ydl:
                 song_info = ydl.extract_info('https://www.youtube.com/watch?v=dQw4w9WgXcQ', download=True)
-                print(song_info)
+                filename = ydl.prepare_filename(song_info)[:-5] + ".mp3"
 
-            voice_client.play(source=discord.FFmpegPCMAudio(''))
+            voice_client.play(discord.FFmpegPCMAudio(filename), after=lambda e: print('done', e))
+            voice_client.source = discord.PCMVolumeTransformer(voice_client.source)
+            voice_client.source.volume = 0.15
 
 
 def setup(client):
