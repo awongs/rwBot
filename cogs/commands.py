@@ -8,21 +8,12 @@ class Commands(commands.Cog):
         self.client = client
         print("Loaded commands.py")
 
-    # Get's the voice client that is connected to the author's server
-    def get_voice_client(self, author_guild: discord.Guild) -> discord.VoiceClient:
-        for voice_client in self.client.voice_clients:
-            if voice_client.guild == author_guild:
-                return voice_client
-
-        return None
-
     # Command for when the user types !ping
     @commands.command()
     async def ping(self, ctx):
 
         # Reply with the bot's latency
         await ctx.send(f'Pong! {round(self.client.latency * 1000)}ms')
-        await self.summon()
 
     @commands.command()
     async def summon(self, ctx):
@@ -32,7 +23,7 @@ class Commands(commands.Cog):
             return
 
         # Reference to the specific server's voice client
-        voice_client = self.get_voice_client(author_guild=ctx.author.guild)
+        voice_client = ctx.author.guild.voice_client
 
         print(f"Joining {ctx.author.voice.channel}")
 
@@ -46,7 +37,7 @@ class Commands(commands.Cog):
     async def leave(self, ctx):
 
         # Reference to the specific server's voice client
-        voice_client = self.get_voice_client(author_guild=ctx.author.guild)
+        voice_client = ctx.author.guild.voice_client
 
         # Check if the message author is in the same voice channel
         if voice_client.channel.id == ctx.author.voice.channel.id:
