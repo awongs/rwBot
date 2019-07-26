@@ -1,6 +1,7 @@
 import discord
 import youtube_dl
 import os
+import common
 from discord.ext import commands
 
 
@@ -65,6 +66,7 @@ class Music(commands.Cog):
 
     @commands.command()
     async def play(self, ctx, url):
+        await ctx.message.delete(delay=common.deletion_delay)
 
         # Reference to the specific server's voice client
         guild = ctx.author.guild
@@ -73,8 +75,8 @@ class Music(commands.Cog):
         # Connect to the author's channel
         if voice_client is None:
             voice_client = await ctx.author.voice.channel.connect()
-        else:
-            await voice_client.move_to(ctx.author.voice.channel)
+        elif voice_client.channel.id != ctx.author.voice.channel.id:
+            await ctx.send(":x: You must be in the same voice channel to use this command")
 
         # Get song information
         song_info = self.ydl.extract_info(url, download=False)
@@ -94,14 +96,34 @@ class Music(commands.Cog):
             self.check_queue(guild)
 
     @commands.command()
+    async def queue(self, ctx):
+        await ctx.message.delete(delay=common.deletion_delay)
+
+        # Reference to the author's guild
+        guild = ctx.author.guild
+
+        # Display queue
+        if guild.id in self.queues:
+            message = ""
+            for num, song_info in enumerate(self.queues[guild.id], start=1):
+                message += f"{num}: {song_info['title']}\n"
+
+            await ctx.send(message)
+        else:
+            await ctx.send("Queue is currently empty.")
+
+    @commands.command()
     async def skip(self, ctx):
 
         # Reference to the specific server's voice client
         guild = ctx.author.guild
         voice_client = guild.voice_client
 
-        if voice_client is not None and voice_client.is_playing():
-            voice_client.stop()
+        if voice_client is not None and voice_client.channel.id == ctx.author.voice.channel.id:
+            if voice_client.is_playing():
+                voice_client.stop()
+        else:
+            await ctx.send(":x: You must be in the same voice channel to use this command")
 
 
 def setup(client):
