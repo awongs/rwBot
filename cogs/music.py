@@ -12,6 +12,19 @@ class Music(commands.Cog):
     def __init__(self, client):
         self.client = client
         self.check_connections()
+
+        opts = {
+            'format': 'bestaudio/best',
+            'outtmpl': f'{os.getcwd()}/songs/%(title)s.%(ext)s',
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
+        }
+
+        self.ydl = youtube_dl.YoutubeDL(opts)
+
         print("Loaded music.py")
 
     def check_connections(self):
@@ -24,15 +37,29 @@ class Music(commands.Cog):
 
     def check_queue(self, guild):
         print("Checking queue")
-        if not self.queues[guild.id]:
+        if self.queues[guild.id]:
             voice_client = guild.voice_client
 
             # Check if ready for next song
             if voice_client.is_connected() and not voice_client.is_playing():
-                audio_source = self.queues[guild.id].pop()
+                # Retrieve song information
+                song_info = self.queues[guild.id].pop()
+                filename = self.ydl.prepare_filename(song_info).split('.')[0] + '.mp3'
+                song_url = song_info["webpage_url"];
+
+                # Download the song if this is the first time playing it
+                if not os.path.exists(filename):
+                    self.ydl.download([song_url])
+
+                # Create and play audio source
+                audio_source = discord.FFmpegPCMAudio(filename)
+
+                print(f"Now playing in {voice_client.channel.name} - {song_info['title']}")
+
                 voice_client.play(audio_source, after=lambda e: self.check_queue(guild))
                 voice_client.source = discord.PCMVolumeTransformer(voice_client.source)
                 voice_client.source.volume = 0.15
+
         else:
             print("Queue is empty")
 
@@ -43,35 +70,28 @@ class Music(commands.Cog):
         guild = ctx.author.guild
         voice_client = guild.voice_client
 
-        if voice_client is not None:
+        # Connect to the author's channel
+        if voice_client is None:
+            voice_client = await ctx.author.voice.channel.connect()
+        else:
+            await voice_client.move_to(ctx.author.voice.channel)
 
-            opts = {
-                'format': 'bestaudio/best',
-                'outtmpl': f'{os.getcwd()}/songs/%(title)s.%(ext)s',
-                'postprocessors': [{
-                    'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'mp3',
-                    'preferredquality': '192',
-                }],
-            }
-            with youtube_dl.YoutubeDL(opts) as ydl:
-                song_info = ydl.extract_info(url, download=True)
-                filename = ydl.prepare_filename(song_info).split('.')[0] + '.mp3'
+        # Get song information
+        song_info = self.ydl.extract_info(url, download=False)
 
-            audio_source = discord.FFmpegPCMAudio(filename)
+        # Add song to the queue
+        if guild.id in self.queues:
+            self.queues[guild.id].append(song_info)
+        else:
+            self.queues[guild.id] = [song_info]
 
-            if guild.id in self.queues:
-                self.queues[guild.id].append(audio_source)
-            else:
-                self.queues[guild.id] = [audio_source]
-            await ctx.send(f"Queued {filename}.")
+        position_in_queue = len(self.queues[guild.id])
+        await ctx.send(f"Queued {song_info['title']} - {song_info['webpage_url']} "
+                       f" | Position in Queue: {position_in_queue}")
 
+        # Check queue here if bot is idle
+        if not voice_client.is_playing():
             self.check_queue(guild)
-
-            #voice_client.play(audio_source, after=lambda e: print('done', e))
-            #voice_client.source = discord.PCMVolumeTransformer(voice_client.source)
-            #voice_client.source.volume = 0.15
-            #print(f"Playing - {filename}")
 
     @commands.command()
     async def skip(self, ctx):
