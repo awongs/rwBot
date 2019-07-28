@@ -1,1 +1,1 @@
-deletion_delay = 10
+deletion_delay = 5

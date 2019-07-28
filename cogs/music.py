@@ -7,11 +7,11 @@ from discord.ext import commands
 
 class Music(commands.Cog):
 
-    # Dictionary of queues for all guilds with a connected voice client
-    queues = {}
-
     def __init__(self, client):
         self.client = client
+        self.queues = {}  # Dictionary of queues for all guilds with a connected voice client
+        self.deliberate = False
+        self.currentFile = None
         self.check_connections()
 
         opts = {
@@ -48,6 +48,8 @@ class Music(commands.Cog):
                 filename = self.ydl.prepare_filename(song_info).split('.')[0] + '.mp3'
                 song_url = song_info["webpage_url"];
 
+                self.currentFile = filename
+
                 # Download the song if this is the first time playing it
                 if not os.path.exists(filename):
                     self.ydl.download([song_url])
@@ -57,12 +59,16 @@ class Music(commands.Cog):
 
                 print(f"Now playing in {voice_client.channel.name} - {song_info['title']}")
 
-                voice_client.play(audio_source, after=lambda e: self.check_queue(guild))
+                voice_client.play(audio_source, after=lambda e: self.end_of_song(guild))
                 voice_client.source = discord.PCMVolumeTransformer(voice_client.source)
                 voice_client.source.volume = 0.15
 
         else:
             print("Queue is empty")
+
+    def end_of_song(self, guild):
+        if not self.deliberate:
+            self.check_queue(guild)
 
     @commands.command()
     async def play(self, ctx, url):
@@ -95,6 +101,34 @@ class Music(commands.Cog):
         if not voice_client.is_playing():
             self.check_queue(guild)
 
+    @commands.command(aliases=["skipto"])
+    async def skip_to(self, ctx, time):
+        await ctx.message.delete(delay=common.deletion_delay)
+
+        guild = ctx.author.guild
+        voice_client = guild.voice_client
+
+        self.deliberate = True  # Set flag
+
+        voice_client.stop()
+
+        # Create and play audio source, skip to input time
+        audio_source = discord.FFmpegPCMAudio(self.currentFile, before_options=f"-ss {time}")
+
+        voice_client.play(audio_source, after=lambda e: self.end_of_song(guild))
+        voice_client.source = discord.PCMVolumeTransformer(voice_client.source)
+        voice_client.source.volume = 0.15
+
+        self.deliberate = False  # Reset flag
+
+    @commands.command()
+    async def stop(self, ctx):
+        await ctx.message.delete(delay=common.deletion_delay)
+
+        guild = ctx.author.guild
+        voice_client = guild.voice_client
+        voice_client.stop()
+
     @commands.command()
     async def queue(self, ctx):
         await ctx.message.delete(delay=common.deletion_delay)
@@ -114,6 +148,7 @@ class Music(commands.Cog):
 
     @commands.command()
     async def skip(self, ctx):
+        await ctx.message.delete(delay=common.deletion_delay)
 
         # Reference to the specific server's voice client
         guild = ctx.author.guild
