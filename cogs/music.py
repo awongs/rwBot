@@ -4,7 +4,6 @@ import os
 import re
 import common
 
-import google_auth_oauthlib.flow
 import googleapiclient.discovery
 import googleapiclient.errors
 
@@ -16,10 +15,11 @@ from discord.ext import commands
 
 scopes = ["https://www.googleapis.com/auth/youtube.force-ssl"]
 
+
 class Music(commands.Cog):
 
-    def __init__(self, client):
-        self.client = client
+    def __init__(self, bot):
+        self.bot = bot
         self.queues = {}  # Dictionary of queues for all guilds with a connected voice client
         self.deliberate = False
         self.currentFile = None
@@ -41,8 +41,8 @@ class Music(commands.Cog):
         print("Loaded music.py")
 
     def check_connections(self):
-        if len(self.client.voice_clients) != 0:
-            for voice_client in self.client.voice_clients:
+        if len(self.bot.voice_clients) != 0:
+            for voice_client in self.bot.voice_clients:
                 # await voice_client.disconnect()
                 print(f"Disconnected from {voice_client.guild}")
         else:
@@ -193,8 +193,8 @@ class Music(commands.Cog):
             await ctx.send(":x: You must be in the same voice channel to use this command")
 
 
-def setup(client):
-    client.add_cog(Music(client))
+def setup(bot):
+    bot.add_cog(Music(bot))
 
 
 def search_youtube(query: str) -> str:

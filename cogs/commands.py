@@ -5,8 +5,8 @@ from discord.ext import commands
 
 class Commands(commands.Cog):
 
-    def __init__(self, client):
-        self.client = client
+    def __init__(self, bot):
+        self.bot = bot
         print("Loaded commands.py")
 
     # Command for when the user types !ping
@@ -14,7 +14,7 @@ class Commands(commands.Cog):
     async def ping(self, ctx):
 
         # Reply with the bot's latency
-        await ctx.send(f'Pong! {round(self.client.latency * 1000)}ms')
+        await ctx.send(f'Pong! {round(self.bot.latency * 1000)}ms')
 
     @commands.command()
     async def summon(self, ctx):
@@ -53,5 +53,5 @@ class Commands(commands.Cog):
             await ctx.send(":x: You must be in the same voice channel to use this command")
 
 
-def setup(client):
-    client.add_cog(Commands(client))
+def setup(bot):
+    bot.add_cog(Commands(bot))
