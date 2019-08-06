@@ -1,9 +1,20 @@
 import discord
 import youtube_dl
 import os
+import re
 import common
+
+import google_auth_oauthlib.flow
+import googleapiclient.discovery
+import googleapiclient.errors
+
+from oauth2client import client
+from oauth2client import tools
+from oauth2client.file import Storage
+
 from discord.ext import commands
 
+scopes = ["https://www.googleapis.com/auth/youtube.force-ssl"]
 
 class Music(commands.Cog):
 
@@ -14,6 +25,7 @@ class Music(commands.Cog):
         self.currentFile = None
         self.check_connections()
 
+        # Options for youtube-dl
         opts = {
             'format': 'bestaudio/best',
             'outtmpl': f'{os.getcwd()}/songs/%(title)s.%(ext)s',
@@ -24,7 +36,7 @@ class Music(commands.Cog):
             }],
         }
 
-        self.ydl = youtube_dl.YoutubeDL(opts)
+        self.ydl = youtube_dl.YoutubeDL(opts)  # youtube-dl object
 
         print("Loaded music.py")
 
@@ -36,6 +48,15 @@ class Music(commands.Cog):
         else:
             print("No voice clients detected")
 
+    def end_of_song(self, guild):
+        """
+        Called at the end of a song.
+        Deliberate is a flag for if the song was ended due to a skip_to command.
+        """
+
+        if not self.deliberate:
+            self.check_queue(guild)
+
     def check_queue(self, guild):
         print("Checking queue")
         if self.queues[guild.id]:
@@ -46,7 +67,7 @@ class Music(commands.Cog):
                 # Retrieve song information
                 song_info = self.queues[guild.id].pop()
                 filename = self.ydl.prepare_filename(song_info).split('.')[0] + '.mp3'
-                song_url = song_info["webpage_url"];
+                song_url = song_info['webpage_url'];
 
                 self.currentFile = filename
 
@@ -66,13 +87,17 @@ class Music(commands.Cog):
         else:
             print("Queue is empty")
 
-    def end_of_song(self, guild):
-        if not self.deliberate:
-            self.check_queue(guild)
-
     @commands.command()
-    async def play(self, ctx, url):
+    async def play(self, ctx, *args):
         await ctx.message.delete(delay=common.deletion_delay)
+        message = " ".join(args)
+        url = None
+
+        if re.search(common.youtube_url_regex, message):
+            url = message
+        else:
+            print(f"{message} is not a valid youtube url, assuming search query")
+            url = search_youtube(message)
 
         # Reference to the specific server's voice client
         guild = ctx.author.guild
@@ -86,6 +111,13 @@ class Music(commands.Cog):
 
         # Get song information
         song_info = self.ydl.extract_info(url, download=False)
+
+        # Validation for non-owners
+        if ctx.author.id != common.owner_id:
+            if song_info['duration'] > common.max_song_length_seconds:
+                await ctx.send(f"Duration of requested song ({song_info['duration']}) exceeds the maximum of "
+                               f"{common.max_song_length_seconds / 60} minutes")
+                return
 
         # Add song to the queue
         if guild.id in self.queues:
@@ -137,7 +169,7 @@ class Music(commands.Cog):
         guild = ctx.author.guild
 
         # Display queue
-        if guild.id in self.queues:
+        if guild.id in self.queues and self.queues[guild.id]:
             message = ""
             for num, song_info in enumerate(self.queues[guild.id], start=1):
                 message += f"{num}: {song_info['title']}\n"
@@ -163,3 +195,36 @@ class Music(commands.Cog):
 
 def setup(client):
     client.add_cog(Music(client))
+
+
+def search_youtube(query: str) -> str:
+    api_service_name = "youtube"
+    api_version = "v3"
+    client_secrets_file = "client_secret_790142580553-q30d3duhu32319jruubhjh6ap7gjfi33.apps.googleusercontent.com.json"
+
+    # Attempt to get existing credentials
+    credential_path = os.path.join('./', 'credentials.json')
+    store = Storage(credential_path)
+    credentials = store.get()
+
+    # Open a browser to get credentials if needed
+    if not credentials or credentials.invalid:
+        flow = client.flow_from_clientsecrets(client_secrets_file, scopes)
+        credentials = tools.run_flow(flow, store)
+
+    # Create Youtube object
+    youtube = googleapiclient.discovery.build(
+        api_service_name, api_version, credentials=credentials)
+
+    # Youtube API search request
+    request = youtube.search().list(
+        part="snippet",
+        maxResults=1,
+        q=query,
+        type="video"
+    )
+    response = request.execute()
+
+    # Grab URL of first video in search results
+    url = f"https://www.youtube.com/watch?v={response['items'][0]['id']['videoId']}"
+    return url
