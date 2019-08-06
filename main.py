@@ -1,6 +1,6 @@
 import discord
 import os
-import common
+import constants
 from discord.ext import commands
 
 client = commands.Bot(command_prefix='.')
@@ -16,7 +16,7 @@ async def on_ready():
 async def on_message(msg):
     # Delete bot messages after a delay
     if msg.author == client.user:
-        await msg.delete(delay=common.deletion_delay)
+        await msg.delete(delay=constants.deletion_delay)
 
     print(f"{msg.author}: {msg.content}  ---  {msg.author.guild}.{msg.channel}")  # Logging
 

@@ -1,5 +1,5 @@
 import discord
-import common
+import constants
 from discord.ext import commands
 
 
@@ -18,7 +18,7 @@ class Commands(commands.Cog):
 
     @commands.command()
     async def summon(self, ctx):
-        await ctx.message.delete(delay=common.deletion_delay)
+        await ctx.message.delete(delay=constants.DELETION_DELAY)
 
         # Check if author is in a voice channel before connecting
         if ctx.author.voice is None:
@@ -38,7 +38,7 @@ class Commands(commands.Cog):
 
     @commands.command()
     async def leave(self, ctx):
-        await ctx.message.delete(delay=common.deletion_delay)
+        await ctx.message.delete(delay=constants.DELETION_DELAY)
 
         # Reference to the specific server's voice client
         voice_client = ctx.author.guild.voice_client

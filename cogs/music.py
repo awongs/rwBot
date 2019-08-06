@@ -2,7 +2,7 @@ import discord
 import youtube_dl
 import os
 import re
-import common
+import constants
 
 import googleapiclient.discovery
 import googleapiclient.errors
@@ -14,6 +14,9 @@ from oauth2client.file import Storage
 from discord.ext import commands
 
 scopes = ["https://www.googleapis.com/auth/youtube.force-ssl"]
+youtube_url_regex = "^(https?\:\/\/)?(www\.youtube\.com|youtu\.?be)\/.+$"
+url_regex = "http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\), ]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
+max_song_length_seconds = 600
 
 
 class Music(commands.Cog):
@@ -66,7 +69,7 @@ class Music(commands.Cog):
             if voice_client.is_connected() and not voice_client.is_playing():
                 # Retrieve song information
                 song_info = self.queues[guild.id].pop()
-                filename = self.ydl.prepare_filename(song_info).split('.')[0] + '.mp3'
+                filename = os.path.splitext(self.ydl.prepare_filename(song_info))[0] + '.mp3'
                 song_url = song_info['webpage_url'];
 
                 self.currentFile = filename
@@ -89,11 +92,11 @@ class Music(commands.Cog):
 
     @commands.command()
     async def play(self, ctx, *args):
-        await ctx.message.delete(delay=common.deletion_delay)
+        await ctx.message.delete(delay=constants.DELETION_DELAY)
         message = " ".join(args)
         url = None
 
-        if re.search(common.youtube_url_regex, message):
+        if re.search(url_regex, message):
             url = message
         else:
             print(f"{message} is not a valid youtube url, assuming search query")
@@ -113,10 +116,10 @@ class Music(commands.Cog):
         song_info = self.ydl.extract_info(url, download=False)
 
         # Validation for non-owners
-        if ctx.author.id != common.owner_id:
-            if song_info['duration'] > common.max_song_length_seconds:
+        if ctx.author.id != constants.OWNER_ID:
+            if song_info['duration'] > constants.max_song_length_seconds:
                 await ctx.send(f"Duration of requested song ({song_info['duration']}) exceeds the maximum of "
-                               f"{common.max_song_length_seconds / 60} minutes")
+                               f"{constants.max_song_length_seconds / 60} minutes")
                 return
 
         # Add song to the queue
@@ -135,7 +138,7 @@ class Music(commands.Cog):
 
     @commands.command(aliases=["skipto"])
     async def skip_to(self, ctx, time):
-        await ctx.message.delete(delay=common.deletion_delay)
+        await ctx.message.delete(delay=constants.DELETION_DELAY)
 
         guild = ctx.author.guild
         voice_client = guild.voice_client
@@ -155,7 +158,7 @@ class Music(commands.Cog):
 
     @commands.command()
     async def stop(self, ctx):
-        await ctx.message.delete(delay=common.deletion_delay)
+        await ctx.message.delete(delay=constants.DELETION_DELAY)
 
         guild = ctx.author.guild
         voice_client = guild.voice_client
@@ -163,7 +166,7 @@ class Music(commands.Cog):
 
     @commands.command()
     async def queue(self, ctx):
-        await ctx.message.delete(delay=common.deletion_delay)
+        await ctx.message.delete(delay=constants.DELETION_DELAY)
 
         # Reference to the author's guild
         guild = ctx.author.guild
@@ -180,7 +183,7 @@ class Music(commands.Cog):
 
     @commands.command()
     async def skip(self, ctx):
-        await ctx.message.delete(delay=common.deletion_delay)
+        await ctx.message.delete(delay=constants.DELETION_DELAY)
 
         # Reference to the specific server's voice client
         guild = ctx.author.guild
