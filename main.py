@@ -3,7 +3,7 @@ import os
 import constants
 from discord.ext import commands
 
-client = commands.Bot(command_prefix='.')
+client = commands.Bot(command_prefix='!')
 
 # Called when the bot is ready
 @client.event
@@ -16,7 +16,7 @@ async def on_ready():
 async def on_message(msg):
     # Delete bot messages after a delay
     if msg.author == client.user:
-        await msg.delete(delay=constants.deletion_delay)
+        await msg.delete(delay=constants.DELETION_DELAY)
 
     print(f"{msg.author}: {msg.content}  ---  {msg.author.guild}.{msg.channel}")  # Logging
 

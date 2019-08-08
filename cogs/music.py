@@ -1,3 +1,5 @@
+import asyncio
+
 import discord
 import youtube_dl
 import os
@@ -83,12 +85,19 @@ class Music(commands.Cog):
 
                 print(f"Now playing in {voice_client.channel.name} - {song_info['title']}")
 
+                # TODO
+                asyncio.ensure_future(self.update_status(song_info['title']), loop=self.bot.loop)
+
                 voice_client.play(audio_source, after=lambda e: self.end_of_song(guild))
                 voice_client.source = discord.PCMVolumeTransformer(voice_client.source)
                 voice_client.source.volume = 0.15
 
         else:
             print("Queue is empty")
+
+    async def update_status(self, status: str):
+        game = discord.Game(status)
+        await self.bot.change_presence(status=discord.Status.idle, activity=game)
 
     @commands.command()
     async def play(self, ctx, *args):
